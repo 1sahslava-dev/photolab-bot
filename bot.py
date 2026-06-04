@@ -1,6 +1,6 @@
 """
-PHOTO LAB by V.F. — Telegram Quiz Bot
-Тест после каждой темы курса по фотоделу
+PHOTO LAB by V.F. — Telegram Quiz Bot v2
+Совместим с python-telegram-bot 21.x и Python 3.13
 """
 
 import os
@@ -14,10 +14,6 @@ from telegram.ext import (
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# ─────────────────────────────────────────
-#  ДАННЫЕ КУРСА
-#  Добавляй новые темы сюда в том же формате
-# ─────────────────────────────────────────
 COURSE = [
     {
         "module": 1,
@@ -41,16 +37,8 @@ COURSE = [
                     "Линза изменяет направление света",
                 ],
                 "correct": 1,
-                "explanation": (
-                    "✅ Верно!\n"
-                    "Лучи от верхней и нижней точек объекта пересекаются "
-                    "в отверстии и меняются местами на противоположной стене."
-                ),
-                "wrong_explanation": (
-                    "❌ Не совсем.\n"
-                    "Правильный ответ: *«Световые лучи пересекаются в точке отверстия»*.\n"
-                    "Именно это пересечение и создаёт перевёрнутую проекцию."
-                ),
+                "explanation": "✅ Верно!\nЛучи от верхней и нижней точек объекта пересекаются в отверстии и меняются местами на противоположной стене.",
+                "wrong_explanation": "❌ Не совсем.\nПравильный ответ: *«Световые лучи пересекаются в точке отверстия»*.\nИменно это пересечение и создаёт перевёрнутую проекцию.",
             },
             {
                 "text": "❓ Кто первым дал научное описание принципа камеры-обскуры?",
@@ -61,16 +49,8 @@ COURSE = [
                     "Мо-цзы (Китай, 400 до н.э.)",
                 ],
                 "correct": 2,
-                "explanation": (
-                    "✅ Верно!\n"
-                    "Ибн аль-Хайсам около 1000 г. н.э. описал принцип "
-                    "в «Книге оптики» — это стало основой всей последующей оптики."
-                ),
-                "wrong_explanation": (
-                    "❌ Не совсем.\n"
-                    "Правильный ответ: *«Ибн аль-Хайсам (~1000 г. н.э.)»*.\n"
-                    "Мо-цзы описал эффект раньше, но как наблюдение — без научного объяснения."
-                ),
+                "explanation": "✅ Верно!\nИбн аль-Хайсам около 1000 г. н.э. описал принцип в «Книге оптики».",
+                "wrong_explanation": "❌ Не совсем.\nПравильный ответ: *«Ибн аль-Хайсам (~1000 г. н.э.)»*.\nМо-цзы описал эффект раньше, но как наблюдение — без научного объяснения.",
             },
             {
                 "text": "❓ Что общего у камеры-обскуры и современного смартфона?",
@@ -81,40 +61,20 @@ COURSE = [
                     "Оба изобретены в XIX веке",
                 ],
                 "correct": 2,
-                "explanation": (
-                    "✅ Верно!\n"
-                    "Принцип один: свет → отверстие/линза → изображение.\n"
-                    "Изменился только носитель: стена → плёнка → цифровая матрица."
-                ),
-                "wrong_explanation": (
-                    "❌ Не совсем.\n"
-                    "Правильный ответ: *«Свет проходит через отверстие/линзу»*.\n"
-                    "Это фундаментальный принцип, который не изменился за 1000 лет."
-                ),
+                "explanation": "✅ Верно!\nПринцип один: свет → отверстие/линза → изображение.\nИзменился только носитель: стена → плёнка → цифровая матрица.",
+                "wrong_explanation": "❌ Не совсем.\nПравильный ответ: *«Свет проходит через отверстие/линзу»*.\nЭто фундаментальный принцип, который не изменился за 1000 лет.",
             },
         ],
     },
-    # ── Сюда добавляй следующие темы ──
-    # {
-    #     "module": 1,
-    #     "topic": 2,
-    #     "title": "Экспозиция",
-    #     "questions": [ ... ]
-    # },
 ]
 
-# Индекс тем по ключу "m{module}_t{topic}"
 TOPICS_INDEX = {
     f"m{t['module']}_t{t['topic']}": i
     for i, t in enumerate(COURSE)
 }
 
-# ─────────────────────────────────────────
-#  ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-# ─────────────────────────────────────────
 
-def get_user_state(context: ContextTypes.DEFAULT_TYPE) -> dict:
-    """Получить или создать состояние пользователя."""
+def get_state(context):
     if "state" not in context.user_data:
         context.user_data["state"] = {
             "topic_key": None,
@@ -122,13 +82,12 @@ def get_user_state(context: ContextTypes.DEFAULT_TYPE) -> dict:
             "score": 0,
             "total": 0,
             "answered": False,
-            "results": {},   # topic_key -> {"score": x, "total": y}
+            "results": {},
         }
     return context.user_data["state"]
 
 
 def topic_keyboard():
-    """Клавиатура выбора темы."""
     buttons = []
     for t in COURSE:
         key = f"m{t['module']}_t{t['topic']}"
@@ -138,164 +97,122 @@ def topic_keyboard():
     return InlineKeyboardMarkup(buttons)
 
 
-def answer_keyboard(topic_key: str, q_index: int, num_options: int):
-    """Клавиатура вариантов ответа."""
+def answer_keyboard(topic_key, q_index, num_options):
     letters = ["А", "Б", "В", "Г", "Д"]
-    buttons = []
-    for i in range(num_options):
-        cb = f"ans_{topic_key}_{q_index}_{i}"
-        buttons.append([InlineKeyboardButton(f"{letters[i]}", callback_data=cb)])
+    buttons = [
+        [InlineKeyboardButton(letters[i], callback_data=f"ans_{topic_key}_{q_index}_{i}")]
+        for i in range(num_options)
+    ]
     return InlineKeyboardMarkup(buttons)
 
 
-def next_keyboard(topic_key: str, q_index: int, total: int):
-    """Кнопка перехода к следующему вопросу или результатам."""
+def next_keyboard(topic_key, q_index, total):
     if q_index + 1 < total:
-        return InlineKeyboardMarkup([[
-            InlineKeyboardButton("Следующий вопрос →", callback_data=f"next_{topic_key}_{q_index + 1}")
-        ]])
+        btn = InlineKeyboardButton("Следующий вопрос →", callback_data=f"next_{topic_key}_{q_index + 1}")
     else:
-        return InlineKeyboardMarkup([[
-            InlineKeyboardButton("Посмотреть результат 🏁", callback_data=f"result_{topic_key}")
-        ]])
+        btn = InlineKeyboardButton("Посмотреть результат 🏁", callback_data=f"result_{topic_key}")
+    return InlineKeyboardMarkup([[btn]])
 
 
-def score_emoji(score: int, total: int) -> str:
-    pct = score / total if total else 0
-    if pct == 1.0:
-        return "🏆"
-    elif pct >= 0.66:
-        return "⭐"
-    else:
-        return "📚"
+async def send_question(chat_id, context, topic_key, q_index):
+    topic = COURSE[TOPICS_INDEX[topic_key]]
+    q = topic["questions"][q_index]
+    letters = ["А", "Б", "В", "Г", "Д"]
+    total = len(topic["questions"])
+    options_text = "\n".join(f"*{letters[i]}* — {opt}" for i, opt in enumerate(q["options"]))
+    text = f"📝 Вопрос {q_index + 1} из {total}\n\n{q['text']}\n\n{options_text}"
+    await context.bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=answer_keyboard(topic_key, q_index, len(q["options"]))
+    )
 
-
-# ─────────────────────────────────────────
-#  ХЭНДЛЕРЫ
-# ─────────────────────────────────────────
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /start — приветствие."""
     name = update.effective_user.first_name or "друг"
-    text = (
-        f"👋 Привет, {name}!\n\n"
-        "Это бот курса *PHOTO LAB by V.F.*\n"
-        "Здесь ты можешь проверить знания после каждой темы.\n\n"
-        "Выбери тему для теста:"
-    )
     await update.message.reply_text(
-        text,
+        f"👋 Привет, {name}!\n\nЭто бот курса *PHOTO LAB by V.F.*\nВыбери тему для теста:",
         parse_mode="Markdown",
         reply_markup=topic_keyboard()
     )
 
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Команда /menu — вернуться в меню."""
-    await update.message.reply_text(
-        "📚 Выбери тему:",
-        reply_markup=topic_keyboard()
-    )
+    await update.message.reply_text("📚 Выбери тему:", reply_markup=topic_keyboard())
 
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Обработчик всех inline-кнопок."""
     query = update.callback_query
     await query.answer()
     data = query.data
-    state = get_user_state(context)
+    state = get_state(context)
 
-    # ── Выбор темы ──
     if data.startswith("start_"):
         topic_key = data[6:]
         if topic_key not in TOPICS_INDEX:
             await query.edit_message_text("Тема не найдена.")
             return
-
         topic = COURSE[TOPICS_INDEX[topic_key]]
-        state["topic_key"] = topic_key
-        state["q_index"] = 0
-        state["score"] = 0
-        state["total"] = len(topic["questions"])
-        state["answered"] = False
-
-        await query.edit_message_text(
-            topic["intro"],
-            parse_mode="Markdown"
-        )
+        state.update({
+            "topic_key": topic_key,
+            "q_index": 0,
+            "score": 0,
+            "total": len(topic["questions"]),
+            "answered": False,
+        })
+        await query.edit_message_text(topic["intro"], parse_mode="Markdown")
         await send_question(query.message.chat_id, context, topic_key, 0)
-        return
 
-    # ── Ответ на вопрос ──
-    if data.startswith("ans_"):
+    elif data.startswith("ans_"):
         parts = data.split("_")
-        # ans_{topic_key}_{q_index}_{choice}
-        # topic_key может содержать _ поэтому собираем обратно
         choice = int(parts[-1])
         q_index = int(parts[-2])
         topic_key = "_".join(parts[1:-2])
-
         if state.get("answered"):
             return
-
         state["answered"] = True
         topic = COURSE[TOPICS_INDEX[topic_key]]
         q = topic["questions"][q_index]
-        total_q = len(topic["questions"])
         is_correct = (choice == q["correct"])
-
         if is_correct:
             state["score"] += 1
             reply = q["explanation"]
         else:
             reply = q["wrong_explanation"]
-
-        reply += f"\n\n_Вопрос {q_index + 1} из {total_q}_"
-
+        reply += f"\n\n_Вопрос {q_index + 1} из {len(topic['questions'])}_"
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=reply,
             parse_mode="Markdown",
-            reply_markup=next_keyboard(topic_key, q_index, total_q)
+            reply_markup=next_keyboard(topic_key, q_index, len(topic["questions"]))
         )
-        return
 
-    # ── Следующий вопрос ──
-    if data.startswith("next_"):
+    elif data.startswith("next_"):
         parts = data.split("_")
         q_index = int(parts[-1])
         topic_key = "_".join(parts[1:-1])
         state["answered"] = False
         await send_question(query.message.chat_id, context, topic_key, q_index)
-        return
 
-    # ── Результат ──
-    if data.startswith("result_"):
+    elif data.startswith("result_"):
         topic_key = data[7:]
         topic = COURSE[TOPICS_INDEX[topic_key]]
         score = state["score"]
         total = state["total"]
-        emoji = score_emoji(score, total)
-
-        # Сохраняем результат
         state["results"][topic_key] = {"score": score, "total": total}
-
         pct = int(score / total * 100) if total else 0
         bar = "█" * score + "░" * (total - score)
-
         if score == total:
             comment = "Отлично! Тема усвоена полностью. 🎯"
         elif score >= total * 0.66:
             comment = "Хороший результат! Перечитай моменты, где ошибся."
         else:
             comment = "Стоит вернуться к материалу и повторить тему."
-
+        emoji = "🏆" if score == total else ("⭐" if score >= total * 0.66 else "📚")
         text = (
-            f"{emoji} *Результат теста*\n"
-            f"_{topic['title']}_\n\n"
-            f"`{bar}` {score}/{total} ({pct}%)\n\n"
-            f"{comment}\n\n"
-            "Выбери следующую тему:"
+            f"{emoji} *Результат теста*\n_{topic['title']}_\n\n"
+            f"`{bar}` {score}/{total} ({pct}%)\n\n{comment}\n\nВыбери следующую тему:"
         )
         await context.bot.send_message(
             chat_id=query.message.chat_id,
@@ -303,17 +220,14 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown",
             reply_markup=topic_keyboard()
         )
-        return
 
-    # ── Прогресс ──
-    if data == "progress":
+    elif data == "progress":
         results = state.get("results", {})
         if not results:
             text = "📊 *Прогресс*\n\nПока нет пройденных тестов.\nВыбери тему и начни!"
         else:
             lines = ["📊 *Твой прогресс:*\n"]
-            total_score = 0
-            total_q = 0
+            total_score = total_q = 0
             for key, res in results.items():
                 idx = TOPICS_INDEX.get(key)
                 if idx is None:
@@ -328,7 +242,6 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 overall = int(total_score / total_q * 100)
                 lines.append(f"_Общий результат: {total_score}/{total_q} ({overall}%)_")
             text = "\n".join(lines)
-
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text=text,
@@ -337,69 +250,32 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 InlineKeyboardButton("← Назад к темам", callback_data="back_menu")
             ]])
         )
-        return
 
-    # ── Назад в меню ──
-    if data == "back_menu":
+    elif data == "back_menu":
         await context.bot.send_message(
             chat_id=query.message.chat_id,
             text="📚 Выбери тему:",
             reply_markup=topic_keyboard()
         )
-        return
-
-
-async def send_question(chat_id, context, topic_key, q_index):
-    """Отправить вопрос с вариантами ответов."""
-    topic = COURSE[TOPICS_INDEX[topic_key]]
-    q = topic["questions"][q_index]
-    letters = ["А", "Б", "В", "Г", "Д"]
-    total = len(topic["questions"])
-
-    options_text = "\n".join(
-        f"*{letters[i]}* — {opt}"
-        for i, opt in enumerate(q["options"])
-    )
-
-    text = (
-        f"📝 Вопрос {q_index + 1} из {total}\n\n"
-        f"{q['text']}\n\n"
-        f"{options_text}"
-    )
-
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        parse_mode="Markdown",
-        reply_markup=answer_keyboard(topic_key, q_index, len(q["options"]))
-    )
 
 
 async def unknown(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "Используй /start для начала или /menu для выбора темы."
-    )
+    await update.message.reply_text("Используй /start для начала или /menu для выбора темы.")
 
-
-# ─────────────────────────────────────────
-#  ЗАПУСК
-# ─────────────────────────────────────────
 
 def main():
     token = os.environ.get("BOT_TOKEN")
     if not token:
         raise ValueError("Установи переменную окружения BOT_TOKEN")
-
     app = Application.builder().token(token).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("menu", menu))
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, unknown))
-
     logger.info("Бот запущен...")
     app.run_polling(drop_pending_updates=True)
 
 
 if __name__ == "__main__":
+    main()
     main()
