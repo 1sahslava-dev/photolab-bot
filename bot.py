@@ -37,6 +37,7 @@ except Exception as e:
 # ─────────────────────────────────────────
 #  КУРС
 # ─────────────────────────────────────────
+ACTIVE_TOPICS = 1
 COURSE = [
     {
         "module": 1,
@@ -469,7 +470,7 @@ def get_state(context):
 
 def topic_keyboard():
     buttons = []
-    for t in COURSE:
+    for t in COURSE[:ACTIVE_TOPICS]:
         key = f"m{t['module']}_t{t['topic']}"
         label = f"М{t['module']}·Т{t['topic']} — {t['title']}"
         buttons.append([InlineKeyboardButton(label, callback_data=f"start_{key}")])
