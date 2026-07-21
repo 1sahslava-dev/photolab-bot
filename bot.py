@@ -103,7 +103,7 @@ except Exception as e:
 # ─────────────────────────────────────────
 #  КУРС
 # ─────────────────────────────────────────
-ACTIVE_TOPICS = 6 
+ACTIVE_TOPICS = 7 
 COURSE = [
     {
   "module": 1,
