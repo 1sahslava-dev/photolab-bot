@@ -86,7 +86,13 @@ def load_results_from_sheets(user_id: int) -> dict:
     except Exception as e:
         logger.error(f"Ошибка загрузки из Sheets: {e}")
         return {}
-
+async def ensure_results_loaded(user_id: int, state: dict):
+    """Догружает результаты из Google Sheets, если в памяти бота их нет (например, после рестарта на Railway)."""
+    if not state.get("results"):
+        saved = load_results_from_sheets(user_id)
+        if saved:
+            state["results"] = saved
+            logger.info(f"Догружены результаты для {user_id}: {saved}")
 # ── Регистрация шрифтов ──
 try:
     pdfmetrics.registerFont(TTFont('R',   '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'))
