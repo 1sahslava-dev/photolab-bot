@@ -1128,12 +1128,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     name = update.effective_user.first_name or "друг"
     state = get_state(context)
     # Загружаем результаты из Google Sheets если память пустая
-    if not state.get("results"):
-        user_id = update.effective_user.id
-        saved = load_results_from_sheets(user_id)
-        if saved:
-            state["results"] = saved
-            logger.info(f"Загружены результаты для {user_id}: {saved}")
+    await ensure_results_loaded(update.effective_user.id, state)
     await update.message.reply_text(
         f"👋 Привет, {name}!\n\nЭто бот курса *PHOTO LAB by V.F.*\nВыбери тему для теста:",
         parse_mode="Markdown", reply_markup=topic_keyboard()
@@ -1141,6 +1136,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    state = get_state(context)
+    await ensure_results_loaded(update.effective_user.id, state)
     await update.message.reply_text("📚 Выбери тему:", reply_markup=topic_keyboard())
 
 
@@ -1201,7 +1198,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     state = get_state(context)
-
+await ensure_results_loaded(query.from_user.id, state)
     # ── Выбор темы ──
     if data.startswith("start_"):
         topic_key = data[6:]
