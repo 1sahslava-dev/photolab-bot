@@ -1198,7 +1198,7 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     data = query.data
     state = get_state(context)
-await ensure_results_loaded(query.from_user.id, state)
+    await ensure_results_loaded(query.from_user.id, state)
     # ── Выбор темы ──
     if data.startswith("start_"):
         topic_key = data[6:]
